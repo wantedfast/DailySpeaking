@@ -1,0 +1,32 @@
+[Unit]
+Description=DailySpeaking knowledge and speaking practice
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dailyspeaking
+Group=dailyspeaking
+WorkingDirectory=/opt/dailyspeaking/current
+EnvironmentFile=/etc/dailyspeaking.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3014
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=SQLITE_PATH=/var/lib/dailyspeaking/quotas.sqlite
+Environment=TRUST_PROXY=true
+Environment=MOCK_AI=false
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StateDirectory=dailyspeaking
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dailyspeaking
+
+[Install]
+WantedBy=multi-user.target

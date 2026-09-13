@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SQLITE_PATH: /app/data/quotas.sqlite
+      TRUST_PROXY: "true"
+      MOCK_AI: "false"
+    volumes:
+      - quota-data:/app/data
+    expose:
+      - "3000"
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+volumes:
+  quota-data:
+  caddy-data:
+  caddy-config:
