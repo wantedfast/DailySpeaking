@@ -147,7 +147,7 @@ docker build --build-arg NEXT_PUBLIC_BASE_PATH=/dailyspeaking -t dailyspeaking .
 | `POST /api/speech` | `word`, `research`, `minutes`（3/4/5） | `paragraphs`, `outline` |
 | `GET /api/health` | 无 | 应用存活状态 |
 
-分类值为 `accounting`、`ai`、`computing`、`nature`、`hr`。请求体上限为 64 KB。DeepSeek 请求采用 JSON 输出、关闭思考模式，并限制输出预算与超时。
+分类值为 `accounting`、`ai`、`computing`、`nature`、`hr`。请求体上限为 64 KB。DeepSeek 请求采用 JSON 输出、关闭思考模式，并限制输出预算与超时。提示中附带响应 JSON Schema；格式校验失败时最多请求一次格式修正，与首次请求共享原有总超时。有效输出不重试，上游故障、内容截断及无效出处不自动重试。一次生成操作因此最多调用两次上游，限流仍按本站请求次数计数。
 
 ```sh
 npm test
