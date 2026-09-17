@@ -114,6 +114,10 @@ test('document generation sends original context, returns verified citations and
       const request=JSON.parse(String(init?.body));
       assert.match(request.messages[0].content,/所有事实必须来自给定原文/);
       assert.ok(request.messages[1].content.includes(sourceText));
+      if (request.max_tokens === 6500) {
+        assert.match(request.messages[1].content,/必须且仅有6个章节/);
+        assert.match(request.messages[1].content,/章内禁止添加chunkId/);
+      }
       return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(output)}}]});
     }) as typeof fetch;
     assert.equal((await documentTopic(doc.id,[])).word,'知识管理');
