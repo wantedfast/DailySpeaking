@@ -84,28 +84,3 @@ test('mock generation cannot be enabled in production', () => {
   try { env.NODE_ENV = 'production'; env.MOCK_AI = 'true'; assert.equal(mockEnabled(), false); env.NODE_ENV = 'test'; assert.equal(mockEnabled(), true); }
   finally { if (oldNode === undefined) delete env.NODE_ENV; else env.NODE_ENV = oldNode; if (oldMock === undefined) delete env.MOCK_AI; else env.MOCK_AI = oldMock; }
 });
-
-test('AI repairs malformed output once using the same deadline and never retries provider failures', async () => {
-  const oldKey = process.env.DEEPSEEK_API_KEY;
-  process.env.DEEPSEEK_API_KEY = 'test-only';
-  try {
-    let calls = 0;
-    let signal: AbortSignal | null | undefined;
-    const fetcher = (async (_url: unknown, init: RequestInit) => {
-      const request = JSON.parse(String(init.body));
-      calls++;
-      if (calls === 1) signal = init.signal;
-      else { assert.equal(init.signal, signal); assert.match(request.messages.at(-1).content, /未通过格式校验/); }
-      assert.match(request.messages[0].content, /JSON Schema/);
-      return Response.json({choices:[{finish_reason:'stop',message:{content:calls === 1 ? '{"wrong":true}' : '{"word":"知识管理"}'}}]});
-    }) as typeof fetch;
-    assert.deepEqual(await generate(z.object({word:z.string()}).strict(),'test',500,fetcher),{word:'知识管理'});
-    assert.equal(calls,2);
-    calls=0;
-    await assert.rejects(generate(z.object({word:z.string()}),'test',500,(async()=>{calls++;return Response.json({},{status:429});}) as typeof fetch),ApiError);
-    assert.equal(calls,1);
-    calls=0;
-    await assert.rejects(generate(z.object({word:z.string()}),'test',500,(async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:'not json'}}]});}) as typeof fetch),ApiError);
-    assert.equal(calls,2);
-  } finally {if(oldKey===undefined)delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=oldKey;}
-});

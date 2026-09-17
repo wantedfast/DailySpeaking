@@ -133,7 +133,7 @@ docker build --build-arg NEXT_PUBLIC_BASE_PATH=/dailyspeaking -t dailyspeaking .
 - 生成时会将分类、关键词，以及生成讲解稿所需的研究材料发送至本网站服务端和 DeepSeek。抽词会发送最近 30 个词用于避重，不上传整份练习历史。
 - 服务端 SQLite 保存配额计数及用于计数的 IP 哈希；启用代理时，Nginx 也可能按服务器配置记录访问日志。
 - 不录音、不转写、不做 AI 评分。完成记录表示完成计时，不能验证是否实际发言。
-- 领域练习不联网检索、不展示外部来源；文档练习展示实际提供给生成模型并被其引用的原文片段及页码或段落编号。AI 内容仍可能有误，应对照原文核实。
+- 不联网检索、不展示来源；AI 内容可能有误。研究正文目标为 1,800–2,500 中文字，讲解稿按每分钟约 220–260 字生成，实际长度与阅读速度会有变化。
 - 模型输出按文本显示，不执行生成的 HTML。生成失败保留已经完成的内容，可重试，不会自动用模拟结果替代。
 
 ## 接口与验证
@@ -147,7 +147,7 @@ docker build --build-arg NEXT_PUBLIC_BASE_PATH=/dailyspeaking -t dailyspeaking .
 | `POST /api/speech` | `word`, `research`, `minutes`（3/4/5） | `paragraphs`, `outline` |
 | `GET /api/health` | 无 | 应用存活状态 |
 
-分类值为 `accounting`、`ai`、`computing`、`nature`、`hr`。请求体上限为 64 KB。DeepSeek 请求采用 JSON 输出、关闭思考模式，并限制输出预算与超时。提示中附带响应 JSON Schema；格式校验失败时最多请求一次格式修正，与首次请求共享原有总超时。有效输出不重试，上游故障、内容截断及无效出处不自动重试。一次生成操作因此最多调用两次上游，限流仍按本站请求次数计数。
+分类值为 `accounting`、`ai`、`computing`、`nature`、`hr`。请求体上限为 64 KB。DeepSeek 请求采用 JSON 输出、关闭思考模式，并限制输出预算与超时。
 
 ```sh
 npm test
@@ -160,50 +160,3 @@ npm run test:e2e
 浏览器测试在本地 3100 端口启动开发服务器，明确启用模拟内容，覆盖分类、时长、计时恢复、稿件模式、记录与错误重试等流程。运行前请停止同一项目目录下其他 `next dev` 进程：即使端口不同，它们也会争用 `.next` 开发锁。测试采用默认根路径，运行时不要设置生产子路径构建变量。
 
 模拟测试用于验证交互与异常处理，不等同于真实 DeepSeek 内容质量或公网可用性验收。部署后请单独验证有效 Key 下的完整生成流程。
-
-## 共享文档知识库
-
-首页点击「知识库」，所有访客都能查看文档列表、预览提取的文字、下载原始 PDF / Word，并选择一份文档开始练习。选定后依次抽取主题、生成研究材料和讲解稿；研究材料与讲解稿页面的「查看原文依据」显示来源文件及 PDF 页码 / Word 段落编号。刷新后保留当前练习及出处。文档被删除后，浏览器已保存的练习仍可阅读，重新生成研究材料或下载原文件会提示文档不存在。
-
-管理员在知识库中输入 `ADMIN_PASSWORD` 登录，可上传和删除文件。配置为空时管理功能关闭。会话 Cookie 为 HttpOnly、SameSite=Strict，有效期 8 小时；HTTPS 使用 Secure Cookie，退出清除当前浏览器 Cookie，修改密码使全部旧会话失效。登录按 IP 每分钟最多 5 次、每日 100 次，全站每日 1000 次；未启用可信代理时共用匿名额度。上传和删除要求有效管理员会话及同源请求。生产环境请通过 HTTPS 管理。
-
-```dotenv
-# .env.local；生产时设置到私有环境文件
-ADMIN_PASSWORD=替换为长且唯一的管理员密码
-KNOWLEDGE_DIR=./data/knowledge
-```
-
-上传仅支持文字 PDF 和 DOCX，每次一份，单份最大 20 MiB。PDF 最多 500 页，提取文字最多 100 万字符，解析最多 45 秒；Word 解压总大小最多 80 MiB、单个内部条目最多 20 MiB、最多 5000 个条目。独立工作线程限制 JS 堆内存，每个应用实例同时处理一份上传。扫描件需先 OCR；旧版 `.doc` 和加密文件需先转换或解密。图片和复杂排版不作为知识内容；DOCX 提供段落编号而非不可靠的页码。
-
-原文件通过随机 ID 命名，存入 `KNOWLEDGE_DIR/files`；元数据、状态、正文分块存入同目录的 `knowledge.sqlite`，登录限流存入 `login-quotas.sqlite`。解析失败仍保留原文件供下载，管理员可删除后重新上传。服务启动时将上次中断的解析标记为失败。删除会清理数据库内容和原文件。知识库全站公开，不提供访客私有资料或账号隔离。
-
-生成过程从整份文档均匀抽取最多 12 个片段供抽取主题；按主题的中文双字词与英文词匹配检索最多 8 个片段供生成研究材料。AI 只能使用给定原文，资料不足时明确提示；这是轻量文本检索，不是跨文档语义向量搜索。原文相关片段会发送给 DeepSeek，原文件不会发送给 DeepSeek。模拟模式会明确显示「模拟模式」，用于验证流程，不能验证真实模型的内容质量。
-
-### 持久化与部署
-
-- 当前支持单个 Node 应用实例，不将多个独立实例指向同一知识库目录。
-- systemd 模板设置 `KNOWLEDGE_DIR=/var/lib/dailyspeaking/knowledge`，与发布目录分离；在 `/etc/dailyspeaking.env` 中另行设置管理员密码。
-- Docker 使用现有 `/app/data` 持久卷中的 `knowledge` 子目录。更新镜像不能删除该卷。
-- 备份时停止应用，再备份整个知识库目录；恢复时同时恢复原文件与数据库，保留目录写权限。
-- Nginx 路由模板仅为 `/dailyspeaking/api/documents` 设置 21 MB 上传请求上限（含表单开销），其余路径仍为 64 KB。更新时同时替换两个 Nginx 配置片段。根路径部署需对应改为 `/api/documents`。
-- Caddy 同样独立设置上传与生成请求上限。可信代理必须覆盖 `X-Real-IP` 和 `X-Forwarded-Proto`，应用端口不直接公开。
-- standalone 构建包含解析工作线程及其依赖；发布整个 `.next/standalone`，按原部署步骤补齐静态资源。
-
-### 新增接口
-
-| 方法与路径 | 行为 |
-|---|---|
-| `GET /api/admin/session` | 返回管理功能是否配置、当前是否登录 |
-| `POST /api/admin/session` | JSON `{password}`，登录并设置会话 Cookie |
-| `DELETE /api/admin/session` | 退出并清除 Cookie |
-| `GET /api/documents` | 返回公开文档列表与解析状态 |
-| `POST /api/documents` | 管理员 multipart 上传，唯一文件字段为 `file`，保存原文件并返回解析结果 |
-| `GET /api/documents/:id` | 文档信息与带出处的文本分块 |
-| `GET /api/documents/:id/download` | 下载原文件，包括解析失败的文件 |
-| `DELETE /api/documents/:id` | 管理员删除文件与知识内容 |
-
-`POST /api/topic` 和 `POST /api/research` 增加可选 `documentId`；省略时保留原行为。文档研究响应增加 `source: {id,name}` 与 `citations: [{chunkId,label,text}]`。客户端讲解请求只发送研究章节与问题，避免重复发送原文片段占用原有 64 KB 预算。所有路径兼容构建时子路径前缀。
-
-新增测试覆盖中文 PDF / DOCX、页码与段落、超限与损坏文件、解析超时、原文件字节一致性、重启恢复、权限和同源校验、浏览器来源恢复及完整文档练习。浏览器测试使用专用测试密码和独立的 `data/e2e-knowledge-*` 目录，不使用生产知识库。
-
-构建后运行 `npx tsx scripts/smoke-standalone.ts`，将生产包复制到源码目录外，检查 PDF / DOCX 解析、下载字节一致性、重启后的内容保留和未配置管理员时的保护。该测试自动读取构建的访问前缀，可用于根路径或 `/dailyspeaking` 构建；它使用临时密码和目录，不调用真实 AI，结束时删除自身测试目录。

@@ -8,7 +8,6 @@ services:
     env_file: .env
     environment:
       SQLITE_PATH: /app/data/quotas.sqlite
-      KNOWLEDGE_DIR: /app/data/knowledge
       TRUST_PROXY: "true"
       MOCK_AI: "false"
     volumes:

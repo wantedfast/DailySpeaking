@@ -1,13 +1,5 @@
 {$DOMAIN} {
   encode zstd gzip
-  @documentUpload path /api/documents /dailyspeaking/api/documents
-  request_body @documentUpload {
-    max_size 21MB
-  }
-  @generation path /api/topic /api/research /api/speech /dailyspeaking/api/topic /dailyspeaking/api/research /dailyspeaking/api/speech
-  request_body @generation {
-    max_size 64KB
-  }
   reverse_proxy app:3000 {
     header_up X-Real-IP {remote_host}
   }

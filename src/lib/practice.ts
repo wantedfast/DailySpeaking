@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { createSessionId } from './id';
-import { citationSchema, documentSourceSchema } from './knowledge';
 export const categories = [
   { id: 'accounting', name: '会计', en: 'ACCOUNTING', desc: '读懂数字背后的商业语言', sample: '机会成本 · 现金流 · 沉没成本', icon: 'chart' },
   { id: 'ai', name: '人工智能', en: 'ARTIFICIAL INTELLIGENCE', desc: '理解正在发生的智能变革', sample: '神经网络 · 提示词 · 机器学习', icon: 'spark' },
@@ -10,16 +9,16 @@ export const categories = [
 ] as const;
 export type Category = typeof categories[number]['id'];
 const topicSchema = z.object({ word: z.string().max(80), intro: z.string().max(400) });
-const researchSchema = z.object({ sections: z.array(z.object({ title: z.string().max(120), body: z.string().max(15000) })).max(12), questions: z.array(z.string().max(500)).max(10), source:documentSourceSchema.optional(), citations:z.array(citationSchema).max(8).optional() });
+const researchSchema = z.object({ sections: z.array(z.object({ title: z.string().max(120), body: z.string().max(15000) })).max(12), questions: z.array(z.string().max(500)).max(10) });
 const speechSchema = z.object({ paragraphs: z.array(z.string().max(10000)).max(20), outline: z.array(z.string().max(1000)).max(20) });
 const timerSchema = z.object({ remaining: z.number().min(0).max(600000), deadline: z.number().nullable(), started: z.boolean() });
-export const sessionSchema = z.object({ id: z.string(), category: z.enum(['accounting','ai','computing','nature','hr']), source:documentSourceSchema.optional(), topic: topicSchema.nullable(), research: researchSchema.nullable(), speech: speechSchema.nullable(), minutes: z.union([z.literal(3),z.literal(4),z.literal(5)]), stage: z.enum(['choose','topic','research','speech','done']), timer: timerSchema });
+export const sessionSchema = z.object({ id: z.string(), category: z.enum(['accounting','ai','computing','nature','hr']), topic: topicSchema.nullable(), research: researchSchema.nullable(), speech: speechSchema.nullable(), minutes: z.union([z.literal(3),z.literal(4),z.literal(5)]), stage: z.enum(['choose','topic','research','speech','done']), timer: timerSchema });
 export type Session = z.infer<typeof sessionSchema>;
 export type Research = z.infer<typeof researchSchema>;
 export type Speech = z.infer<typeof speechSchema>;
 export type Topic = z.infer<typeof topicSchema>;
 export type Timer = z.infer<typeof timerSchema>;
-export const recordSchema = z.object({ id:z.string(), word:z.string(), category:z.string(), source:documentSourceSchema.optional(), minutes:z.number(), date:z.string() });
+export const recordSchema = z.object({ id:z.string(), word:z.string(), category:z.string(), minutes:z.number(), date:z.string() });
 export type PracticeRecord = z.infer<typeof recordSchema>;
 export const emptyTimer = (ms = 600000): Timer => ({ remaining: ms, deadline: null, started: false });
 export function remainingTime(timer: Timer, now: number) { return Math.max(0, timer.deadline === null ? timer.remaining : timer.deadline - now); }

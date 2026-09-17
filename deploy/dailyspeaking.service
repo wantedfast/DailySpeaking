@@ -14,7 +14,6 @@ Environment=HOSTNAME=127.0.0.1
 Environment=PORT=3014
 Environment=NEXT_TELEMETRY_DISABLED=1
 Environment=SQLITE_PATH=/var/lib/dailyspeaking/quotas.sqlite
-Environment=KNOWLEDGE_DIR=/var/lib/dailyspeaking/knowledge
 Environment=TRUST_PROXY=true
 Environment=MOCK_AI=false
 ExecStart=/usr/bin/node server.js
